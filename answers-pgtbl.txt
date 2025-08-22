@@ -1,0 +1,2 @@
+sys_open  like sys_getpid put the argument in the USYSCALL page
+
