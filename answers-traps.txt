@@ -1,0 +1,10 @@
+a0, a1, a2; a2
+38:	fde080e7          	jalr	-34(ra) # 12 <f> 
+1e:	fe6080e7          	jalr	-26(ra) # 0 <g>
+
+0000000000000622 <printf>:
+
+  4e:	5d8080e7          	jalr	1496(ra) # 622 <printf>
+  exit(0);
+  52:	4501                	li	a0,0
+  after jalr to printf the ra register is (4e + 4) = 0x52

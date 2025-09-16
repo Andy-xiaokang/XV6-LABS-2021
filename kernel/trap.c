@@ -77,8 +77,22 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
+    p->alarm_ticks++;
+    if (p->alarm_interval == p->alarm_ticks) {
+      if (p->inhandler == 0) {
+        // trigger alarm
+        // 1) backup user trapframe
+        memmove(&p->backup_tf, p->trapframe, sizeof(struct trapframe));
+        // 2) set trapframe->epc = alarm_handler so in userret's sret we jump to alarm_handler
+        p->trapframe->epc = p->alarm_handler;
+        // 3) mark inhandler and reset alarm_ticks
+        p->inhandler = 1;
+        p->alarm_ticks = 0;
+      }
+    }
     yield();
+  }
 
   usertrapret();
 }

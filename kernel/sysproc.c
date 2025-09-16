@@ -55,6 +55,7 @@ sys_sbrk(void)
 uint64
 sys_sleep(void)
 {
+  backtrace();
   int n;
   uint ticks0;
 
@@ -94,4 +95,33 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+
+// alarm solution
+uint64
+sys_sigalarm(void)
+{
+  int ticks;
+  uint64 handler;
+  if (argint(0, &ticks) < 0)
+    return -1;
+  if (argaddr(1, &handler) < 0)
+    return -1;
+  myproc()->alarm_interval = ticks;
+  myproc()->alarm_handler = handler;
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  // only valid if we are in handler
+  if (p->inhandler == 0) return -1;
+  // restore saved user trapframe
+  memmove(p->trapframe, &p->backup_tf, sizeof(struct trapframe));
+  // clear the flag
+  p->inhandler = 0;
+  return 0;
 }
