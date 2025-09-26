@@ -29,6 +29,25 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+int cowhandler(pagetable_t pagetable, uint64 va)
+{
+  if (va >= MAXVA) return -1;
+  pte_t *pte;
+  if ((pte = walk(pagetable, va, 0)) == 0) return -1;
+  if ((*pte & PTE_U) == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_COW) == 0) return -1;
+
+  uint64 pa = PTE2PA(*pte);
+  uint64 ka = (uint64)kalloc();
+
+  if (ka == 0) return -1;
+  memmove((char*) ka, (char*) pa, PGSIZE);
+  kfree((void*) pa);   // 对触发 write page fault 并执行 copy on write 的原来的物理页，引用 -1;
+  uint flags = PTE_FLAGS(*pte);
+  *pte = PA2PTE(ka) | flags | PTE_W;  // 对 write page fault 新分配的页， 给予写权限，并去除 cow flag;
+  *pte &= ~PTE_COW;
+  return 0;
+}
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -67,7 +86,10 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } else if (r_scause() == 15) {  // write page fault
+    if (cowhandler(p->pagetable, r_stval()) < 0) 
+      p->killed = 1;
+  }else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
